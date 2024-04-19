@@ -6,6 +6,8 @@ import os
 import logging
 import telethon
 import telethon.sessions
+import openai as openai_
+import filter
 
 
 async def amain():
@@ -15,11 +17,30 @@ async def amain():
         telethon.sessions.StringSession(os.environ["TELEGRAM_SESSION_TELETHON"]),
         int(os.environ["TELEGRAM_API_ID"]),
         os.environ["TELEGRAM_API_HASH"],
-    ) as tg:
+    ) as tg, openai_.AsyncClient() as openai:
         for chat in config["bot"]["monitor-chats"]:
             async for msg in tg.iter_messages(chat):
-                print(msg)
+                if not msg.message:
+                    continue
+                # print(msg.message)
+
+                prompt = {"role": "user", "content": msg.message}
+                completion = await openai.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[filter.SYSTEM, prompt],
+                    tools=filter.TOOLS,
+                )
+                tool_calls = completion.choices[0].message.tool_calls
+                assert tool_calls
+                args_str = tool_calls[0].function.arguments
+                flag = json.loads(args_str)["flag"]
+
+                # print(flag)
+                if not flag:
+                    continue
+
                 break
+            break
 
         # @tg.on(
         #     telethon.events.NewMessage(
