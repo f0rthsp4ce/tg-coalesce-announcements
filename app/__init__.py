@@ -23,7 +23,9 @@ class App:
 async def process_message(app: App, msg: telethon.types.Message):
     if not msg.message:
         return
-    # print(msg.message)
+    logging.debug(
+        f"Processing message {msg.id} in {msg.peer_id.channel_id}: {msg.message}"
+    )
 
     prompt = {"role": "user", "content": msg.message}
     completion = await app.openai.chat.completions.create(
@@ -35,8 +37,8 @@ async def process_message(app: App, msg: telethon.types.Message):
     assert tool_calls  # TODO: retry logic
     args_str = tool_calls[0].function.arguments
     flag = json.loads(args_str)["flag"]
+    logging.debug(f"Filter result: {flag}")
 
-    # print(flag)
     if not flag:
         return
 
@@ -48,7 +50,7 @@ async def process_message(app: App, msg: telethon.types.Message):
         0
     ].message.content  # TODO: switch to tools as well so that GPT-4 can reject not-an-announcement
     assert content
-    # print(content)
+    logging.debug(f"Formatting result: {content}")
 
     await app.tg.send_message(app.config["bot"]["forward-to"], content)
     await app.tg.send_message(
