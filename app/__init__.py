@@ -44,7 +44,10 @@ async def amain():
                     model="gpt-4-turbo-preview",
                     messages=[format.SYSTEM, prompt],
                 )
-                print(completion.choices[0].message.content)
+                content = completion.choices[0].message.content
+                # print(content)
+
+                await tg.send_message(config["bot"]["forward-to"], content)
 
                 break
             break
