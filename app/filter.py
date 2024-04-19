@@ -1,6 +1,6 @@
 import openai.types.chat
 
-SYSTEM = {
+SYSTEM: openai.types.chat.ChatCompletionSystemMessageParam = {
     "role": "system",
     "content": "You filter chat messages looking for announcements. An event announcement typically contains time and date, and event name or topic.",
 }

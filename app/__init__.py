@@ -8,6 +8,7 @@ import telethon
 import telethon.sessions
 import openai as openai_
 import filter
+import format
 
 
 async def amain():
@@ -38,6 +39,12 @@ async def amain():
                 # print(flag)
                 if not flag:
                     continue
+
+                completion = await openai.chat.completions.create(
+                    model="gpt-4-turbo-preview",
+                    messages=[format.SYSTEM, prompt],
+                )
+                print(completion.choices[0].message.content)
 
                 break
             break
