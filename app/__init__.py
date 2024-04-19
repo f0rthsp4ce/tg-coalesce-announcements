@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import json
 import os
 import logging
+import sys
 import telethon
 import telethon.sessions
 import openai as openai_
@@ -31,7 +32,7 @@ async def process_message(app: App, msg: telethon.types.Message):
         tools=filter.TOOLS,
     )
     tool_calls = completion.choices[0].message.tool_calls
-    assert tool_calls
+    assert tool_calls  # TODO: retry logic
     args_str = tool_calls[0].function.arguments
     flag = json.loads(args_str)["flag"]
 
@@ -43,7 +44,9 @@ async def process_message(app: App, msg: telethon.types.Message):
         model="gpt-4-turbo-preview",
         messages=[format.SYSTEM, prompt],
     )
-    content = completion.choices[0].message.content
+    content = completion.choices[
+        0
+    ].message.content  # TODO: switch to tools as well so that GPT-4 can reject not-an-announcement
     assert content
     # print(content)
 
@@ -57,26 +60,32 @@ async def process_message(app: App, msg: telethon.types.Message):
 async def amain():
     config = json.load(open("settings.json"))
 
-    async with telethon.TelegramClient(
-        telethon.sessions.StringSession(os.environ["TELEGRAM_SESSION_TELETHON"]),
-        int(os.environ["TELEGRAM_API_ID"]),
-        os.environ["TELEGRAM_API_HASH"],
-    ) as tg, openai_.AsyncClient() as openai:
+    async with (
+        telethon.TelegramClient(
+            telethon.sessions.StringSession(os.environ["TELEGRAM_SESSION_TELETHON"]),
+            int(os.environ["TELEGRAM_API_ID"]),
+            os.environ["TELEGRAM_API_HASH"],
+        ) as tg,
+        openai_.AsyncClient() as openai,
+    ):
         app = App(tg, openai, config)
-        for chat in config["bot"]["monitor-chats"]:
-            async for msg in tg.iter_messages(chat):
-                await process_message(app, msg)
-                break
 
-        # @tg.on(
-        #     telethon.events.NewMessage(
-        #         chats=config['bot']['monitor-chats'], incoming=True
-        #     )
-        # )
-        # async def h(event):
-        #     pass
+        match sys.argv[1]:
+            case "backfill":
+                for chat in config["bot"]["monitor-chats"]:
+                    async for msg in tg.iter_messages(chat, limit=100):
+                        await process_message(app, msg)
+            case "monitor":
 
-        # await asyncio.Event().wait()
+                @tg.on(
+                    telethon.events.NewMessage(
+                        chats=config["bot"]["monitor-chats"], incoming=True
+                    )
+                )
+                async def h(event):
+                    await process_message(app, event)
+
+                await asyncio.Event().wait()
 
 
 def main():
