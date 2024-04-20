@@ -1,0 +1,11 @@
+services:
+  toxicity-bot:
+    image: tg-coalesce-announcements
+    env_file:
+      - .env
+    volumes:
+      - type: bind
+        source: ./settings.json
+        target: /app/settings.json
+        read_only: true
+    restart: unless-stopped
